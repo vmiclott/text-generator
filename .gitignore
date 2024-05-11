@@ -1,0 +1,4 @@
+.env
+internal/
+data/
+out/
