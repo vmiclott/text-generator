@@ -159,6 +159,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--context", type=str, nargs="+", default=[], help="Context used for words generation", dest="context")
     cli_args = parser.parse_args()
     validate_cli_args(cli_args)
+    random.seed(cli_args.seed)
     generator = Generator(cli_args.lm_filename)
     if cli_args.num_words is not None:
         generator.generate_words(cli_args.num_words, [normalize.normalize(word) for word in cli_args.context])
