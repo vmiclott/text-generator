@@ -95,9 +95,8 @@ class Generator:
             words.append(next_word)
             context.append(next_word)
 
-    def generate_sentences(self, num_sentences: int) -> None:
+    def generate_sentences(self, num_sentences: int, num_threads: int = 1) -> None:
         threads = []
-        num_threads = 1000  # TODO: this is a magic number which can probably be optimized
         sentence_queue = queue.Queue()  # thread-safe queue
         writer_thread = threading.Thread(target=self._writer_thread, args=([sentence_queue]))
         writer_thread.start()
@@ -147,6 +146,9 @@ def validate_cli_args(cli_args: argparse.Namespace) -> None:
     if not os.path.exists(cli_args.lm_filename):
         raise argparse.ArgumentError(f"language model file {cli_args.lm_filename} does not exist")
 
+    if cli_args.num_threads < 1:
+        raise argparse.ArgumentError(f"--num_threads needs to be an integer greater than 0, but is {cli_args.num_threads}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -157,6 +159,9 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num_sentences", type=int, default=None, help="Number of sentences to generate", dest="num_sentences")
     parser.add_argument("-s", "--seed", type=int, default=time.time_ns(), help="Seed used for randomization", dest="seed")
     parser.add_argument("-c", "--context", type=str, nargs="+", default=[], help="Context used for words generation", dest="context")
+    parser.add_argument(
+        "-t", "--num_threads", type=int, default=1, help="Number of Python threads used for sentence generation", dest="num_threads"
+    )
     cli_args = parser.parse_args()
     validate_cli_args(cli_args)
     random.seed(cli_args.seed)
@@ -164,4 +169,4 @@ if __name__ == "__main__":
     if cli_args.num_words is not None:
         generator.generate_words(cli_args.num_words, [normalize.normalize(word) for word in cli_args.context])
     elif cli_args.num_sentences is not None:
-        generator.generate_sentences(cli_args.num_sentences)
+        generator.generate_sentences(cli_args.num_sentences, cli_args.num_threads)
