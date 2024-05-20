@@ -3,6 +3,8 @@ import os
 import random
 import time
 import normalize
+import queue
+import threading
 
 
 class Generator:
@@ -94,8 +96,36 @@ class Generator:
             context.append(next_word)
 
     def generate_sentences(self, num_sentences: int) -> None:
+        threads = []
+        num_threads = 1000  # TODO: this is a magic number which can probably be optimized
+        sentence_queue = queue.Queue()  # thread-safe queue
+        writer_thread = threading.Thread(target=self._writer_thread, args=([sentence_queue]))
+        writer_thread.start()
+
+        # Start generator threads
+        for _ in range(num_threads):
+            thread = threading.Thread(target=self._generate_and_enqueue_sentences, args=([num_sentences // num_threads, sentence_queue]))
+            thread.start()
+            threads.append(thread)
+
+        # Wait for generator threads to finish
+        for thread in threads:
+            thread.join()
+
+        # Signal writer thread to stop
+        sentence_queue.put(None)
+        writer_thread.join()
+
+    def _generate_and_enqueue_sentences(self, num_sentences, sentence_queue: queue.Queue):
         for _ in range(num_sentences):
             sentence = self._generate_sentence()
+            sentence_queue.put(sentence)
+
+    def _writer_thread(self, sentence_queue: queue.Queue):
+        while True:
+            sentence = sentence_queue.get()
+            if sentence is None:
+                break
             print(" ".join(sentence))
 
 
