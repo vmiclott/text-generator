@@ -26,7 +26,7 @@ options:
 In this package run:
 
 ```
-python generate.py --language_model example/shakespeare.arpa --num_words 100
+python generate.py --language_model example/shakespeare.arpa --num_words 100 --seed 0
 ```
 
 The 100 generated words will be printed to the terminal.
@@ -36,7 +36,7 @@ The 100 generated words will be printed to the terminal.
 In this package run:
 
 ```
-python generate.py --language_model example/shakespeare.arpa --num_words 100 --context hello world
+python generate.py --language_model example/shakespeare.arpa --num_words 100 --context hello world --seed 0
 ```
 
 The 100 generated words will be printed to the terminal.
@@ -46,7 +46,7 @@ The 100 generated words will be printed to the terminal.
 In this package run:
 
 ```
-python generate.py --language_model example/shakespeare.arpa --num_sentences 10
+python generate.py --language_model example/shakespeare.arpa --num_sentences 10 --seed 0
 ```
 
 The 10 generated sentences will be printed to the terminal.
@@ -54,5 +54,5 @@ The 10 generated sentences will be printed to the terminal.
 To generate sentences in parallel you can specify how many processes to spawn (each process will be responsible to generate `ceil(num_sentences/num_processes)` sentences).
 
 ```
-python generate.py --language_model example/shakespeare.arpa --num_sentences 100000 --num_processes 16
+python generate.py --language_model example/shakespeare.arpa --num_sentences 100000 --num_processes 16 --seed 0
 ```
