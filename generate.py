@@ -105,7 +105,7 @@ class Generator:
                 # limit context to what the model supports
                 context = context[1 - self.n :]
             next_word = self._next(context)
-            while self._is_unknown(next_word):
+            while self._is_unknown(next_word) or next_word is None:
                 next_word = self._next(context)
             if self._is_sentence_start(next_word) or self._is_sentence_end(next_word):
                 # reset context to new sentence
@@ -123,7 +123,7 @@ class Generator:
                 # limit context to what the model supports
                 context = context[1 - self.n :]
             next_word = self._next(context)
-            while self._is_unknown(next_word):
+            while self._is_unknown(next_word) or next_word is None:
                 next_word = self._next(context)
             if self._is_sentence_start(next_word) or self._is_sentence_end(next_word):
                 if len(words) == 0:
