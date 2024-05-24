@@ -1,4 +1,5 @@
 import argparse
+import functools
 import os
 import random
 import time
@@ -9,6 +10,7 @@ import threading
 
 class Generator:
     def __init__(self, arpa_filename: str) -> None:
+        self.unigrams = []
         self.model = {}
         self.unique_ngram_counts = {}
         with open(arpa_filename, "r") as arpa_file:
@@ -28,6 +30,7 @@ class Generator:
                 for line in section.strip().split("\n")[1:]:
                     self._parse_ngram(n, line)
                 n += 1
+        self.unigrams = sorted(self.unigrams, key=lambda unigram: self._prob("", unigram), reverse=True)
 
     def _is_sentence_start(self, word: str) -> bool:
         return word == "<s>"
@@ -43,25 +46,57 @@ class Generator:
         prob = 10 ** float(parts[0])
         context = " ".join(parts[1:n])
         word = parts[n]
-        if self._is_unknown(word):
-            # skip <unk>, the generated text should only contain words from the vocabulary
-            return
-        if context in self.model:
-            self.model[context].append((word, prob))
+        if n == 1:
+            self.unigrams.append(word)
+        if len(parts) > n + 1:
+            backoff = 10 ** float(parts[n + 1])
         else:
-            self.model[context] = [(word, prob)]
+            backoff = 1
+        if context in self.model:
+            self.model[context][word] = (prob, backoff)
+        else:
+            self.model[context] = {word: (prob, backoff)}
+
+    def _skip_first_n_words(self, context_string: str, n: int) -> str:
+        parts = context_string.split(" ", n)
+        if len(parts) < n + 1:
+            return ""
+        return parts[n]
+
+    def _skip_last_n_words(self, context_string: str, n: int) -> str:
+        parts = context_string.rsplit(" ", n)
+        if len(parts) < n + 1:
+            return ""
+        return parts[0]
+
+    def _last_word_only(self, context_string: str) -> str:
+        parts = context_string.rsplit(" ", 1)
+        if len(parts) == 1:
+            return parts[0]
+        return parts[1]
+
+    @functools.cache
+    def _backoff(self, context_string: str, word: str) -> float:
+        if context_string in self.model and word in self.model[context_string]:
+            return self.model[context_string][word][1]
+        return 1
+
+    @functools.cache
+    def _prob(self, context_string: str, word: str) -> float:
+        if context_string in self.model and word in self.model[context_string]:
+            return self.model[context_string][word][0]
+        return self._prob(self._skip_first_n_words(context_string, 1), word) * self._backoff(
+            self._skip_last_n_words(context_string, 1), self._last_word_only(context_string)
+        )
 
     def _next(self, context: list[str]) -> str:
         context_string = " ".join(context)
-        if context_string not in self.model:
-            return self._next(context[1:])
-        r = random.random()
-        summ = 0
-        for word, prob in self.model[context_string]:
-            summ += prob
-            if summ > r:
+        prob_sum = 0.0
+        rand = random.random()
+        for word in self.unigrams:
+            prob_sum += self._prob(context_string, word)
+            if prob_sum > rand:
                 return word
-        return self._next(context[1:])
 
     def generate_words(self, num_words: int, context: list[str] = ["<s>"]):
         generated_words = []
@@ -70,6 +105,8 @@ class Generator:
                 # limit context to what the model supports
                 context = context[1 - self.n :]
             next_word = self._next(context)
+            while self._is_unknown(next_word):
+                next_word = self._next(context)
             if self._is_sentence_start(next_word) or self._is_sentence_end(next_word):
                 # reset context to new sentence
                 context = ["<s>"]
@@ -86,6 +123,8 @@ class Generator:
                 # limit context to what the model supports
                 context = context[1 - self.n :]
             next_word = self._next(context)
+            while self._is_unknown(next_word):
+                next_word = self._next(context)
             if self._is_sentence_start(next_word) or self._is_sentence_end(next_word):
                 if len(words) == 0:
                     # skip empty generated sentence
