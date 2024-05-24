@@ -1,5 +1,6 @@
 import argparse
 import functools
+import math
 import multiprocessing
 import os
 import random
@@ -141,7 +142,7 @@ class Generator:
 
         for _ in range(num_processes):
             generator_process = multiprocessing.Process(
-                target=self._generate_and_enqueue_sentences, args=([num_sentences // num_processes, sentence_queue])
+                target=self._generate_and_enqueue_sentences, args=([math.ceil(num_sentences / num_processes), sentence_queue])
             )
             generator_process.start()
             generator_processes.append(generator_process)
