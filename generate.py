@@ -1,11 +1,11 @@
 import argparse
 import functools
+import multiprocessing
 import os
 import random
 import time
 import normalize
 import queue
-import threading
 
 
 class Generator:
@@ -75,13 +75,12 @@ class Generator:
             return parts[0]
         return parts[1]
 
-    @functools.cache
     def _backoff(self, context_string: str, word: str) -> float:
         if context_string in self.model and word in self.model[context_string]:
             return self.model[context_string][word][1]
         return 1
 
-    @functools.cache
+    @functools.lru_cache(1_000_000)
     def _prob(self, context_string: str, word: str) -> float:
         if context_string in self.model and word in self.model[context_string]:
             return self.model[context_string][word][0]
@@ -134,32 +133,33 @@ class Generator:
             words.append(next_word)
             context.append(next_word)
 
-    def generate_sentences(self, num_sentences: int, num_threads: int = 1) -> None:
-        threads = []
-        sentence_queue = queue.Queue()  # thread-safe queue
-        writer_thread = threading.Thread(target=self._writer_thread, args=([sentence_queue]))
-        writer_thread.start()
+    def generate_sentences(self, num_sentences: int, num_processes: int = 1) -> None:
+        generator_processes = []
+        sentence_queue = multiprocessing.Queue()
+        writer_process = multiprocessing.Process(target=self._print_from_queue, args=([sentence_queue]))
+        writer_process.start()
 
-        # Start generator threads
-        for _ in range(num_threads):
-            thread = threading.Thread(target=self._generate_and_enqueue_sentences, args=([num_sentences // num_threads, sentence_queue]))
-            thread.start()
-            threads.append(thread)
+        for _ in range(num_processes):
+            generator_process = multiprocessing.Process(
+                target=self._generate_and_enqueue_sentences, args=([num_sentences // num_processes, sentence_queue])
+            )
+            generator_process.start()
+            generator_processes.append(generator_process)
 
-        # Wait for generator threads to finish
-        for thread in threads:
-            thread.join()
+        # Wait for generator processes to finish
+        for generator_process in generator_processes:
+            generator_process.join()
 
         # Signal writer thread to stop
         sentence_queue.put(None)
-        writer_thread.join()
+        writer_process.join()
 
     def _generate_and_enqueue_sentences(self, num_sentences, sentence_queue: queue.Queue):
         for _ in range(num_sentences):
             sentence = self._generate_sentence()
             sentence_queue.put(sentence)
 
-    def _writer_thread(self, sentence_queue: queue.Queue):
+    def _print_from_queue(self, sentence_queue: queue.Queue):
         while True:
             sentence = sentence_queue.get()
             if sentence is None:
@@ -185,8 +185,8 @@ def validate_cli_args(cli_args: argparse.Namespace) -> None:
     if not os.path.exists(cli_args.lm_filename):
         raise argparse.ArgumentError(f"language model file {cli_args.lm_filename} does not exist")
 
-    if cli_args.num_threads < 1:
-        raise argparse.ArgumentError(f"--num_threads needs to be an integer greater than 0, but is {cli_args.num_threads}")
+    if cli_args.num_processes < 1:
+        raise argparse.ArgumentError(f"--num_processes needs to be an integer greater than 0, but is {cli_args.num_processes}")
 
 
 if __name__ == "__main__":
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--seed", type=int, default=time.time_ns(), help="Seed used for randomization", dest="seed")
     parser.add_argument("-c", "--context", type=str, nargs="+", default=[], help="Context used for words generation", dest="context")
     parser.add_argument(
-        "-t", "--num_threads", type=int, default=1, help="Number of Python threads used for sentence generation", dest="num_threads"
+        "-p", "--num_processes", type=int, default=1, help="Number of processes used for sentence generation", dest="num_processes"
     )
     cli_args = parser.parse_args()
     validate_cli_args(cli_args)
@@ -208,4 +208,4 @@ if __name__ == "__main__":
     if cli_args.num_words is not None:
         generator.generate_words(cli_args.num_words, [normalize.normalize(word) for word in cli_args.context])
     elif cli_args.num_sentences is not None:
-        generator.generate_sentences(cli_args.num_sentences, cli_args.num_threads)
+        generator.generate_sentences(cli_args.num_sentences, cli_args.num_processes)

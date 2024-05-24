@@ -9,15 +9,16 @@ Requirements:
 ## Generate text
 
 ```
-usage: generate.py [-h] -lm LM_FILENAME [-nw NUM_WORDS] [-n NUM_SENTENCES] [-s SEED] [-c CONTEXT [CONTEXT ...]]
+generate.py [-h] -lm LM_FILENAME [-nw NUM_WORDS] [-n NUM_SENTENCES] [-s SEED] [-c CONTEXT [CONTEXT ...]] [-p NUM_PROCESSES]
 
 options:
--h, --help show this help message and exit
--lm LM_FILENAME, --language_model LM_FILENAME Language model arpa file used for generation
--nw NUM_WORDS, --num_words NUM_WORDS Number of words to generate
--n NUM_SENTENCES, --num_sentences NUM_SENTENCES Number of sentences to generate
--s SEED, --seed SEED Seed used for randomization
--c CONTEXT [CONTEXT ...], --context CONTEXT [CONTEXT ...] Context used for words generation
+  -h, --help show this help message and exit
+  -lm LM_FILENAME, --language_model LM_FILENAME Language model arpa file used for generation
+  -nw NUM_WORDS, --num_words NUM_WORDS Number of words to generate
+  -n NUM_SENTENCES, --num_sentences NUM_SENTENCES Number of sentences to generate
+  -s SEED, --seed SEED  Seed used for randomization
+  -c CONTEXT [CONTEXT ...], --context CONTEXT [CONTEXT ...] Context used for words generation
+  -p NUM_PROCESSES, --num_processes NUM_PROCESSES Number of processes used for sentence generation
 ```
 
 ### Example generating words without context
