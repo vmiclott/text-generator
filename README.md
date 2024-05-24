@@ -50,3 +50,9 @@ python generate.py --language_model example/shakespeare.arpa --num_sentences 10
 ```
 
 The 10 generated sentences will be printed to the terminal.
+
+To generate sentences in parallel you can specify how many processes to spawn (each process will be responsible to generate `ceil(num_sentences/num_processes)` sentences).
+
+```
+python generate.py --language_model example/shakespeare.arpa --num_sentences 100000 --num_processes 16
+```
