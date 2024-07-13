@@ -10,10 +10,11 @@ import queue
 
 
 class Generator:
-    def __init__(self, arpa_filename: str) -> None:
+    def __init__(self, arpa_filename: str, seed: int) -> None:
         self.unigrams = []
         self.model = {}
         self.unique_ngram_counts = {}
+        self.seed = seed
         with open(arpa_filename, "r") as arpa_file:
             content = arpa_file.read()
             sections = content.split("\n\n")
@@ -99,6 +100,7 @@ class Generator:
                 return word
 
     def generate_words(self, num_words: int, context: list[str] = ["<s>"]):
+        random.seed(self.seed)
         generated_words = []
         while len(generated_words) < num_words:
             if len(context) >= self.n:
@@ -140,9 +142,10 @@ class Generator:
         writer_process = multiprocessing.Process(target=self._print_from_queue, args=([sentence_queue]))
         writer_process.start()
 
-        for _ in range(num_processes):
+        for i in range(num_processes):
+            seed = self.seed + i
             generator_process = multiprocessing.Process(
-                target=self._generate_and_enqueue_sentences, args=([math.ceil(num_sentences / num_processes), sentence_queue])
+                target=self._generate_and_enqueue_sentences, args=([math.ceil(num_sentences / num_processes), sentence_queue, seed])
             )
             generator_process.start()
             generator_processes.append(generator_process)
@@ -155,7 +158,8 @@ class Generator:
         sentence_queue.put(None)
         writer_process.join()
 
-    def _generate_and_enqueue_sentences(self, num_sentences, sentence_queue: queue.Queue):
+    def _generate_and_enqueue_sentences(self, num_sentences: int, sentence_queue: queue.Queue, seed: int) -> None:
+        random.seed(seed)
         for _ in range(num_sentences):
             sentence = self._generate_sentence()
             sentence_queue.put(sentence)
@@ -204,8 +208,7 @@ if __name__ == "__main__":
     )
     cli_args = parser.parse_args()
     validate_cli_args(cli_args)
-    random.seed(cli_args.seed)
-    generator = Generator(cli_args.lm_filename)
+    generator = Generator(cli_args.lm_filename, cli_args.seed)
     if cli_args.num_words is not None:
         generator.generate_words(cli_args.num_words, [normalize.normalize(word) for word in cli_args.context])
     elif cli_args.num_sentences is not None:
