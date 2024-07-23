@@ -19,6 +19,7 @@ options:
   -s SEED, --seed SEED  Seed used for randomization
   -c CONTEXT [CONTEXT ...], --context CONTEXT [CONTEXT ...] Context used for words generation
   -p NUM_PROCESSES, --num_processes NUM_PROCESSES Number of processes used for sentence generation
+  -b, --skip_backoff_weights Do not take backoff weights into account during text generation to speed up the generation
 ```
 
 ### Example generating words without context
@@ -55,4 +56,13 @@ To generate sentences in parallel you can specify how many processes to spawn (e
 
 ```
 python generate.py --language_model example/shakespeare.arpa --num_sentences 100000 --num_processes 16 --seed 0
+```
+
+### Example generating sentences without taking backoff weights into account (faster)
+
+
+In this package run:
+
+```
+python generate.py --language_model example/shakespeare.arpa --num_sentences 100000 --num_processes 16 --seed 0 --skip_backoff_weights
 ```

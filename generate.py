@@ -10,11 +10,12 @@ import queue
 
 
 class Generator:
-    def __init__(self, arpa_filename: str, seed: int) -> None:
+    def __init__(self, arpa_filename: str, seed: int, skip_backoff_weights: bool) -> None:
         self.unigrams = []
         self.model = {}
         self.unique_ngram_counts = {}
         self.seed = seed
+        self.skip_backoff_weights = skip_backoff_weights
         with open(arpa_filename, "r") as arpa_file:
             content = arpa_file.read()
             sections = content.split("\n\n")
@@ -94,10 +95,20 @@ class Generator:
         context_string = " ".join(context)
         prob_sum = 0.0
         rand = random.random()
-        for word in self.unigrams:
-            prob_sum += self._prob(context_string, word)
-            if prob_sum > rand:
-                return word
+        if self.skip_backoff_weights:
+            if context_string not in self.model:
+                return self._next(context[1:])
+            for word, probs in self.model[context_string].items():
+                prob = probs[0]
+                prob_sum += prob
+                if prob_sum > rand:
+                    return word
+            return self._next(context[1:])
+        else:
+            for word in self.unigrams:
+                prob_sum += self._prob(context_string, word)
+                if prob_sum > rand:
+                    return word
 
     def generate_words(self, num_words: int, context: list[str] = ["<s>"]):
         random.seed(self.seed)
@@ -206,9 +217,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "-p", "--num_processes", type=int, default=1, help="Number of processes used for sentence generation", dest="num_processes"
     )
+    parser.add_argument(
+        "-b",
+        "--skip_backoff_weights",
+        default=False,
+        action="store_true",
+        help="Do not take backoff weights into account during text generation to speed up the generation",
+        dest="skip_backoff_weights",
+    )
     cli_args = parser.parse_args()
     validate_cli_args(cli_args)
-    generator = Generator(cli_args.lm_filename, cli_args.seed)
+    generator = Generator(cli_args.lm_filename, cli_args.seed, cli_args.skip_backoff_weights)
     if cli_args.num_words is not None:
         generator.generate_words(cli_args.num_words, [normalize.normalize(word) for word in cli_args.context])
     elif cli_args.num_sentences is not None:
